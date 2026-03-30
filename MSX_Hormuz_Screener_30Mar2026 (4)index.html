@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MSX Hormuz Screener — Input/Output Framework — Updated 30 Mar 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Syne:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0c0f;
+  --bg2: #111318;
+  --bg3: #181c22;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.12);
+  --text: #e8eaf0;
+  --muted: #7a7f8e;
+  --muted2: #4a4f5e;
+  --green: #00d084;
+  --green-dim: rgba(0,208,132,0.12);
+  --green-border: rgba(0,208,132,0.3);
+  --red: #ff4757;
+  --red-dim: rgba(255,71,87,0.1);
+  --red-border: rgba(255,71,87,0.3);
+  --amber: #ffab00;
+  --amber-dim: rgba(255,171,0,0.1);
+  --amber-border: rgba(255,171,0,0.3);
+  --blue: #4dabf7;
+  --blue-dim: rgba(77,171,247,0.1);
+  --mono: 'IBM Plex Mono', monospace;
+  --display: 'Syne', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: var(--display); min-height: 100vh; }
+
+/* HEADER */
+.header {
+  border-bottom: 1px solid var(--border);
+  padding: 28px 32px 20px;
+  position: sticky; top: 0; z-index: 100;
+  background: var(--bg);
+  backdrop-filter: blur(10px);
+}
+.header-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.logo-area h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); }
+.logo-area p { font-size: 11px; color: var(--muted); font-family: var(--mono); margin-top: 3px; letter-spacing: 0.05em; }
+.war-badge {
+  background: var(--red-dim); border: 1px solid var(--red-border);
+  color: var(--red); font-size: 11px; font-family: var(--mono);
+  padding: 6px 12px; border-radius: 4px; white-space: nowrap;
+  animation: pulse-badge 2s ease-in-out infinite;
+}
+@keyframes pulse-badge { 0%,100%{opacity:1} 50%{opacity:0.65} }
+
+.macro-strip {
+  display: flex; gap: 20px; margin-top: 16px; flex-wrap: wrap;
+}
+.macro-item { display: flex; flex-direction: column; }
+.macro-label { font-size: 10px; color: var(--muted); font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.08em; }
+.macro-val { font-size: 15px; font-weight: 700; font-family: var(--mono); margin-top: 1px; }
+.macro-val.red { color: var(--red); }
+.macro-val.amber { color: var(--amber); }
+.macro-val.green { color: var(--green); }
+
+/* CONTROLS */
+.controls {
+  padding: 16px 32px;
+  border-bottom: 1px solid var(--border);
+  display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+}
+.search-box {
+  background: var(--bg2); border: 1px solid var(--border2);
+  color: var(--text); font-family: var(--mono); font-size: 13px;
+  padding: 8px 14px; border-radius: 6px; outline: none;
+  width: 260px; transition: border-color 0.2s;
+}
+.search-box:focus { border-color: var(--blue); }
+.search-box::placeholder { color: var(--muted2); }
+
+.filter-btn {
+  background: var(--bg2); border: 1px solid var(--border);
+  color: var(--muted); font-family: var(--mono); font-size: 11px;
+  padding: 7px 14px; border-radius: 6px; cursor: pointer;
+  transition: all 0.15s; letter-spacing: 0.04em; text-transform: uppercase;
+  white-space: nowrap;
+}
+.filter-btn:hover { border-color: var(--border2); color: var(--text); }
+.filter-btn.active-all { border-color: var(--blue); color: var(--blue); background: var(--blue-dim); }
+.filter-btn.active-up { border-color: var(--green-border); color: var(--green); background: var(--green-dim); }
+.filter-btn.active-mixed { border-color: var(--amber-border); color: var(--amber); background: var(--amber-dim); }
+.filter-btn.active-down { border-color: var(--red-border); color: var(--red); background: var(--red-dim); }
+
+.sort-select {
+  background: var(--bg2); border: 1px solid var(--border);
+  color: var(--muted); font-family: var(--mono); font-size: 11px;
+  padding: 7px 10px; border-radius: 6px; outline: none; cursor: pointer;
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.sort-select:focus { border-color: var(--blue); }
+
+.count-label { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-left: auto; white-space: nowrap; }
+
+/* LEGEND */
+.legend {
+  padding: 10px 32px;
+  border-bottom: 1px solid var(--border);
+  display: flex; gap: 20px; align-items: center; flex-wrap: wrap;
+}
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; font-family: var(--mono); color: var(--muted); }
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+/* TABLE HEADER */
+.table-header {
+  display: grid;
+  grid-template-columns: 80px 190px 100px 1fr 80px 80px 130px;
+  gap: 0;
+  padding: 10px 32px;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--mono); font-size: 10px; color: var(--muted2);
+  text-transform: uppercase; letter-spacing: 0.08em;
+  position: sticky; top: 98px; background: var(--bg); z-index: 90;
+}
+.th-cell { cursor: pointer; padding: 4px 0; transition: color 0.15s; }
+.th-cell:hover { color: var(--muted); }
+
+/* ROWS */
+.stock-list { padding: 0 32px 40px; }
+.stock-row {
+  display: grid;
+  grid-template-columns: 80px 190px 100px 1fr 80px 80px 130px;
+  gap: 0;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  align-items: center;
+  transition: background 0.1s;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.stock-row:hover { background: rgba(255,255,255,0.02); }
+.stock-row.expanded { background: rgba(255,255,255,0.03); border-bottom: none; }
+
+.cell { padding: 0 6px; }
+.cell-ticker { font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--text); }
+.cell-name { font-size: 12px; color: var(--muted); line-height: 1.3; }
+.cell-sector { font-family: var(--mono); font-size: 10px; color: var(--muted2); background: var(--bg3); padding: 3px 7px; border-radius: 3px; display: inline-block; }
+.cell-mcap { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+
+/* SCORES */
+.score-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 22px; border-radius: 4px;
+  font-family: var(--mono); font-size: 11px; font-weight: 500;
+}
+.score-5 { background: rgba(0,208,132,0.25); color: var(--green); }
+.score-4 { background: rgba(0,208,132,0.15); color: #7fe8b8; }
+.score-3 { background: rgba(255,171,0,0.15); color: var(--amber); }
+.score-2 { background: rgba(255,100,50,0.15); color: #ff8c69; }
+.score-1 { background: rgba(255,71,87,0.2); color: var(--red); }
+
+/* DIRECTION */
+.dir-badge {
+  font-family: var(--mono); font-size: 11px; font-weight: 500;
+  padding: 3px 8px; border-radius: 4px; display: inline-block; white-space: nowrap;
+}
+.dir-strong-up { background: var(--green-dim); color: var(--green); border: 1px solid var(--green-border); }
+.dir-up { background: rgba(0,208,132,0.07); color: #7fe8b8; border: 1px solid rgba(0,208,132,0.2); }
+.dir-mixed { background: var(--amber-dim); color: var(--amber); border: 1px solid var(--amber-border); }
+.dir-down { background: rgba(255,100,50,0.08); color: #ff8c69; border: 1px solid rgba(255,100,50,0.25); }
+.dir-strong-down { background: var(--red-dim); color: var(--red); border: 1px solid var(--red-border); }
+
+/* EXPAND PANEL */
+.expand-panel {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  padding: 16px 20px;
+  margin-bottom: 2px;
+  display: none;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+}
+.expand-panel.open { display: grid; }
+.ep-section { }
+.ep-label { font-size: 10px; font-family: var(--mono); color: var(--muted2); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+.ep-text { font-size: 12px; color: var(--muted); line-height: 1.65; }
+.ep-text strong { color: var(--text); font-weight: 500; }
+.ep-range { font-family: var(--mono); font-size: 16px; font-weight: 700; margin-top: 4px; }
+.ep-range.green { color: var(--green); }
+.ep-range.red { color: var(--red); }
+.ep-range.amber { color: var(--amber); }
+
+/* BAR */
+.impact-bar { height: 3px; border-radius: 2px; margin-top: 8px; }
+
+/* SECTOR GROUP HEADER */
+.sector-group-header {
+  padding: 20px 0 8px;
+  font-size: 11px; font-family: var(--mono); color: var(--muted2);
+  text-transform: uppercase; letter-spacing: 0.1em;
+  border-top: 1px solid var(--border);
+  margin-top: 8px;
+}
+.sector-group-header:first-child { border-top: none; margin-top: 0; }
+
+/* SUMMARY STRIP */
+.summary-strip {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 16px 32px;
+}
+.sum-cell {
+  background: var(--bg2);
+  padding: 14px 16px;
+}
+.sum-label { font-size: 10px; font-family: var(--mono); color: var(--muted2); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 4px; }
+.sum-val { font-size: 22px; font-weight: 800; }
+.sum-sub { font-size: 11px; font-family: var(--mono); color: var(--muted); margin-top: 2px; }
+
+/* MOBILE */
+@media (max-width: 900px) {
+  .table-header, .stock-row { grid-template-columns: 70px 1fr 90px 110px; }
+  .cell:nth-child(3), .cell:nth-child(5), .cell:nth-child(6) { display: none; }
+  .table-header .th-cell:nth-child(3),
+  .table-header .th-cell:nth-child(5),
+  .table-header .th-cell:nth-child(6) { display: none; }
+  .expand-panel { grid-template-columns: 1fr; }
+  .controls { padding: 12px 16px; }
+  .stock-list, .summary-strip, .legend, .table-header, .macro-strip { padding-left: 16px; padding-right: 16px; }
+  .header { padding: 18px 16px 14px; }
+  .summary-strip { grid-template-columns: repeat(3, 1fr); margin: 12px 16px; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <div class="logo-area">
+      <h1>MSX Hormuz Screener</h1>
+      <p>INPUT / OUTPUT FRAMEWORK · 104 LISTED COMPANIES · UPDATED 30 MAR 2026 · SCENARIO: HORMUZ STAYS SHUT → APRIL-END</p>
+    </div>
+    <div class="war-badge">⚡ LIVE SCENARIO — BRENT $111–115 · HORMUZ CLOSED SINCE 2 MAR</div>
+  </div>
+  <div class="macro-strip">
+    <div class="macro-item"><span class="macro-label">Brent crude</span><span class="macro-val red">$111–115</span></div>
+    <div class="macro-item"><span class="macro-label">Monthly surge</span><span class="macro-val red">+55% (record)</span></div>
+    <div class="macro-item"><span class="macro-label">Hormuz status</span><span class="macro-val red">CLOSED since 2 Mar</span></div>
+    <div class="macro-item"><span class="macro-label">SPR release</span><span class="macro-val amber">400M bbl</span></div>
+    <div class="macro-item"><span class="macro-label">Trump deadline</span><span class="macro-val amber">Apr 6 (7 days)</span></div>
+    <div class="macro-item"><span class="macro-label">MSX30</span><span class="macro-val green">8,059 (+89% YoY)</span></div>
+  </div>
+</div>
+
+<div class="summary-strip">
+  <div class="sum-cell"><div class="sum-label">Strong buy</div><div class="sum-val" style="color:var(--green)" id="cnt-5">—</div><div class="sum-sub">Score 5/5</div></div>
+  <div class="sum-cell"><div class="sum-label">Buy</div><div class="sum-val" style="color:#7fe8b8" id="cnt-4">—</div><div class="sum-sub">Score 4/5</div></div>
+  <div class="sum-cell"><div class="sum-label">Mixed / neutral</div><div class="sum-val" style="color:var(--amber)" id="cnt-3">—</div><div class="sum-sub">Score 3/5</div></div>
+  <div class="sum-cell"><div class="sum-label">Avoid</div><div class="sum-val" style="color:#ff8c69" id="cnt-2">—</div><div class="sum-sub">Score 2/5</div></div>
+  <div class="sum-cell"><div class="sum-label">Strong sell</div><div class="sum-val" style="color:var(--red)" id="cnt-1">—</div><div class="sum-sub">Score 1/5</div></div>
+</div>
+
+<div class="controls">
+  <input type="text" class="search-box" id="search" placeholder="Search ticker or company...">
+  <button class="filter-btn active-all" data-filter="all" onclick="setFilter('all',this)">All</button>
+  <button class="filter-btn" data-filter="up" onclick="setFilter('up',this)">↑ Winners</button>
+  <button class="filter-btn" data-filter="mixed" onclick="setFilter('mixed',this)">→ Mixed</button>
+  <button class="filter-btn" data-filter="down" onclick="setFilter('down',this)">↓ Losers</button>
+  <select class="sort-select" id="sort-select" onchange="sortData(this.value)">
+    <option value="score-desc">Score ↓</option>
+    <option value="score-asc">Score ↑</option>
+    <option value="mcap-desc">Market Cap ↓</option>
+    <option value="alpha">A–Z</option>
+  </select>
+  <span class="count-label" id="count-label">104 companies</span>
+</div>
+
+<div class="legend">
+  <span style="font-size:11px; font-family:var(--mono); color:var(--muted2); text-transform:uppercase; letter-spacing:0.07em;">Framework:</span>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>Output = export-priced commodity (oil, gas, services) → benefits from price surge</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--amber)"></div>Mixed: some exposure both ways</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div>Input = import-dependent (feed, metals, goods) → costs surge, margins compress</div>
+  <div class="legend-item" style="margin-left:auto;"><span style="font-family:var(--mono); font-size:10px; color:var(--muted2);">Click any row to expand</span></div>
+</div>
+
+<div class="table-header">
+  <div class="th-cell">Ticker</div>
+  <div class="th-cell">Company</div>
+  <div class="th-cell">Sector</div>
+  <div class="th-cell">Rationale</div>
+  <div class="th-cell" onclick="sortData('mcap-desc')">MCap OMR</div>
+  <div class="th-cell" onclick="sortData('score-desc')">Score</div>
+  <div class="th-cell">Direction</div>
+</div>
+
+<div class="stock-list" id="stock-list"></div>
+
+<script>
+const stocks = [
+  // ENERGY UPSTREAM
+  {ticker:"OQEP", name:"OQ Exploration & Production", sector:"Energy", mcap:3800, score:5,
+   dir:"strong-up", dir_label:"▲▲ Strong Buy",
+   inputs:"Oman crude — domestic production, Arabian Sea export route, avoids Hormuz",
+   outputs:"Oman Blend ~$112/bbl at Brent $115. Revenue near-linear to oil price. Price 477 Bzs (+1.27% today).",
+   rationale:"Every $10 Brent rise = ~8–12% revenue uplift. Largest MSX company by cap. Cleanest Hormuz beneficiary. Brent now +55% in March — record monthly surge.",
+   price_move:"+20–35%", notes:"Key watch: production volumes, OPEC+ compliance. Already near 52-wk high (480 Bzs)."},
+
+  {ticker:"OQGN", name:"OQ Gas Networks", sector:"Energy", mcap:1030, score:5,
+   dir:"strong-up", dir_label:"▲▲ Strong Buy",
+   inputs:"Oman gas infrastructure — domestic pipelines, fixed-asset base",
+   outputs:"Gas transit fees, LNG offtake linked to global LNG spot (now record highs). Non-Hormuz export route. Price 237 Bzs (+1.72% today).",
+   rationale:"LNG globally at record prices. Oman LNG via Qalhat terminal on Arabian Sea. Regulated + spot upside. MSX30 at highest since 2008.",
+   price_move:"+15–25%", notes:"LNG spot >$20/MMBtu globally"},
+
+  {ticker:"NGCI", name:"National Gas Company", sector:"Energy", mcap:8, score:4,
+   dir:"up", dir_label:"▲ Buy",
+   inputs:"Industrial gas production (O2, N2, CO2) — locally produced",
+   outputs:"Industrial gases sold to Oman's surging oil & gas sector. Demand spike from drilling acceleration.",
+   rationale:"Oilfield drilling acceleration drives industrial gas demand. Domestic production = no import exposure.",
+   price_move:"+10–18%", notes:"Small cap, limited liquidity"},
+
+  // OILFIELD SERVICES
+  {ticker:"ABRJ", name:"Abraj Energy Services", sector:"Oilfield Svcs", mcap:339, score:5,
+   dir:"strong-up", dir_label:"▲▲ Strong Buy",
+   inputs:"Equipment (some imported), fuel — partly exposed but manageable",
+   outputs:"Drilling, workover services priced per day/well. Rates surge with oil price. Onshore Oman = safe. Price 440 Bzs (+0.69% today).",
+   rationale:"At $115 oil, operators maximize drilling. Day rates spike. Onshore Oman avoids all war risk. Iran rejects negotiations — conflict likely to persist past Apr 6 deadline.",
+   price_move:"+25–40%", notes:"Cleanest oilfield services play on MSX"},
+
+  {ticker:"RNSS", name:"Renaissance Services", sector:"Oilfield Svcs", mcap:81, score:4,
+   dir:"up", dir_label:"▲ Buy",
+   inputs:"Some marine logistics exposure (disrupted); equipment imports",
+   outputs:"Oilfield support, facilities management, camp services. Benefits from upstream acceleration.",
+   rationale:"Dual exposure: upstream uplift (positive) vs marine logistics disruption (negative). Net positive but less clean than Abraj.",
+   price_move:"+10–20%", notes:"Marine division adds complexity"},
+
+  {ticker:"ONES", name:"Oman National Engineering & Investment", sector:"Oilfield Svcs", mcap:24, score:4,
+   dir:"up", dir_label:"▲ Buy",
+   inputs:"Equipment partly imported",
+   outputs:"Engineering services to oil & gas sector. Demand surge from accelerated projects.",
+   rationale:"Engineering and project services to upstream. Benefits from capex acceleration at $110 oil.",
+   price_move:"+8–15%", notes:"Small cap, low liquidity"},
+
+  // PORTS & LOGISTICS
+  {ticker:"SPSI", name:"Salalah Port Services", sector:"Ports/Logistics", mcap:72, score:5,
+   dir:"strong-up", dir_label:"▲▲ Strong Buy",
+   inputs:"Port operations — fuel, labour, equipment. Some import sensitivity.",
+   outputs:"Port fees, container handling, transshipment — volume and rate surge as Salalah becomes global bypass hub. Price 400 Bzs (+1.27% today).",
+   rationale:"Salalah port on Arabian Sea = critical bypass for rerouted global cargo. Hormuz closed since 2 Mar — nearly 4 weeks of rerouting. Throughput surge unprecedented. Risk: drone strikes already hit Salalah area. But port is operational.",
+   price_move:"+20–35%", notes:"⚠ Drone strike risk to Salalah — monitor closely"},
+
+  // SHIPPING
+  {ticker:"ASCO", name:"Asyad Shipping", sector:"Shipping", mcap:1280, score:4,
+   dir:"up", dir_label:"▲ Buy",
+   inputs:"Fuel (bunker oil — cost rises but offset by rates), war risk insurance (rising)",
+   outputs:"Freight rates (TC + spot) surge. 80-vessel fleet. Oman neutral flag = possible selective Hormuz access. Price 246 Bzs (+1.65% today).",
+   rationale:"Already +140% from IPO. War premium partially priced. Sustained escalation pushes further. TC book provides floor. Iran's yuan toll system may allow some Oman-flagged vessels through.",
+   price_move:"+10–20% additional", notes:"Watch Duqm port operations. TC renewal timing critical."},
+
+  // FUEL RETAIL
+  {ticker:"OOMS", name:"Oman Oil Marketing", sector:"Fuel Retail", mcap:66, score:4,
+   dir:"up", dir_label:"▲ Buy",
+   inputs:"Bulk fuel procurement — prices rising but passed through with lag",
+   outputs:"Pump price uplift, margin per litre rises in supply-constrained environment. Domestic demand steady.",
+   rationale:"Fuel retailers benefit from higher pump prices. Inventory held at lower cost = margin uplift. Domestic consumption not discretionary.",
+   price_move:"+8–15%", notes:"Watch govt fuel subsidy policy changes"},
+
+  {ticker:"MHAS", name:"Al Maha Petroleum Products", sector:"Fuel Retail", mcap:83, score:4,
+   dir:"up", dir_label:"▲ Buy",
+   inputs:"Bulk fuel — price pass-through with lag",
+   outputs:"Retail fuel margins, lubricants, automotive products. Same dynamics as OOMS.",
+   rationale:"Similar to OOMS — domestic fuel retailer benefits from price environment. Revenue already OMR 504M.",
+   price_move:"+8–12%", notes:"Pair trade with OOMS"},
+
+  {ticker:"SOMS", name:"Shell Oman Marketing", sector:"Fuel Retail", mcap:73, score:3,
+   dir:"mixed", dir_label:"→ Mixed",
+   inputs:"Global Shell procurement — some insulation through parent company supply chain",
+   outputs:"Retail fuel margins — domestic. Shell brand may help in supply allocation.",
+   rationale:"Similar domestic fuel upside but complex parent company pricing arrangements may limit margin capture vs pure local plays.",
+   price_move:"+5–10%", notes:"Parent company Shell dynamics add complexity"},
+
+  // BANKING
+  {ticker:"BKMB", name:"Bank Muscat", sector:"Banking", mcap:3200, score:3,
+   dir:"mixed", dir_label:"→ Mixed",
+   inputs:"Credit quality: trade-exposed SME borrowers under stress. Provisioning rises.",
+   outputs:"Higher oil = stronger Govt revenues = sovereign deposit strength. Rate environment complex. Price 426 Bzs (+0.24% today). ROE 13.57% in 2025.",
+   rationale:"Largest bank — oil revenue uplift improves sovereign balance sheet (positive for macro). But SME credit deterioration and trade finance NPLs are real negatives. Every key ratio improved 3 yrs straight (2023–2025). Net: mild headwind but quality franchise.",
+   price_move:"-5–+5%", notes:"Watch Q1 NPL disclosures. Already near ATH."},
+
+  {ticker:"BKSB", name:"Sohar International Bank", sector:"Banking", mcap:1440, score:3,
+   dir:"mixed", dir_label:"→ Mixed",
+   inputs:"Trade finance book — Gulf trade disruption hits fee income and NPLs",
+   outputs:"Domestic lending to oil sector benefits. Retail deposits stable.",
+   rationale:"More trade finance exposure than Bank Muscat. Gulf trade collapse hits harder. But Oman sovereign strength is a buffer. Net: mild negative.",
+   price_move:"-5–-12%", notes:"Trade finance book size is key risk factor"},
+
+  {ticker:"NBOB", name:"National Bank of Oman", sector:"Banking", mcap:641, score:3,
+   dir:"mixed", dir_label:"→ Mixed",
+   inputs:"SME and retail credit quality — inflation impact on borrowers",
+   outputs:"Oil sector lending growth. Government-linked deposits strong.",
+   rationale:"Mid-size bank. Oil sector loan book benefits but consumer stress from food inflation is real.",
+   price_move:"-3–+5%", notes:"Consumer loan quality under watch"},
+
+  {ticker:"BKDB", name:"Bank Dhofar", sector:"Banking", mcap:614, score:3,
+   dir:"mixed", dir_label:"→ Mixed",
+   inputs:"Dhofar region exposure — ports/logistics sector NPLs if Salalah ops disrupted",
+   outputs:"Dhofar oil sector (Petroleum Development Oman contracts) — positive.",
+   rationale:"Dhofar regional concentration. Salalah port activity (positive) vs drone strike risk (negative). Balanced.",
+   price_move:"-5–+8%", notes:"Regional concentration in Dhofar is distinctive risk"},
+
+  {ticker:"ABOB", name:"Ahli Bank", sector:"Banking", mcap:539, score:2,
+   dir:"down", dir_label:"↓ Avoid",
+   inputs:"Higher trade finance NPLs. Import-sector SME stress.",
+   outputs:"Limited energy sector exposure vs peers.",
+   rationale:"Less energy-sector linked than BKMB. More consumer/SME/trade concentration. Negative net.",
+   price_move:"-8–15%", notes:"SME book composition key"},
+
+  {ticker:"OAB", name:"Oman Arab Bank", sector:"Banking", mcap:399, score:3,
+   dir:"mixed", dir_label:"→ Mixed",
+   inputs:"Similar to sector peers",
+   outputs:"Mid-size bank — balanced exposure",
+   rationale:"Standard banking sector dynamics. Neither uniquely exposed nor uniquely insulated.",
+   price_move:"-5–+5%", notes:""},
+
+  {ticker:"BKNZ", name:"Bank Nizwa", sector:"Banking", mcap:338, score:3,
+   dir:"mixed", dir_label:"→ Mixed",
+   inputs:"Islamic finance — Murabaha trade finance risk if Gulf trade seized",
+   outputs:"Sukuk portfolio may benefit from rate moves. Domestic Islamic finance demand stable.",
+   rationale:"Islamic bank. Trade Murabaha book at risk from Gulf disruption. Domestic retail book relatively insulated.",
+   price_move:"-5–+5%", notes:"Islamic finance Murabaha trade book is specific risk"},
+
+  // TELECOM
+  {ticker:"OTEL", name:"Oman Telecommunications", sector:"Telecom", mcap:961, score:3,
+   dir:"mixed", dir_label:"→ Mixed",
+   inputs:"Network equipment imports (routers, towers — imported, now costlier). Energy costs up.",
+   outputs:"Domestic telecom revenue — relatively defensive. Data demand actually rises in crisis.",
+   rationale:"Defensive sector but capex on imported equipment inflates. Revenue steady — people use phones more in a crisis. Net: slight negative.",
+   price_move:"-5–+3%", notes:"Equipment import costs are key watch"},
+
+  {ticker:"ORDS", name:"Omani Qatari Telecommunications", sector:"Telecom", mcap:230, score:2,
+   dir:"down", dir_label:"↓ Avoid",
+   inputs:"Qatar JV partner severely disrupted. Equipment imports. Network capex costlier.",
+   outputs:"Domestic revenue stable but Qatar relationship strained.",
+   rationale:"Qatar partnership adds geopolitical complexity — Qatar severely disrupted by Hormuz closure. Equipment supply chain risk.",
+   price_move:"-8–15%", notes:"Qatar partner disruption is distinctive risk vs OTEL"},
+
+  // POWER & UTILITIES
+  {ticker:"PHPC", name:"Phoenix Power Company", sector:"Power/Water", mcap:227, score:3,
+   dir:"mixed", dir_label:"→ Mixed",
+   inputs:"Gas fuel for power generation — Oman domestic gas (insulated from Hormuz).",
+   outputs:"Power sold at regulated tariff — limited upside but very stable. No export exposure.",
+   rationale:"Regulated utility — defensive. Oman domestic gas supply is secure (Arabian Sea route). Very stable revenue, no upside but no downside.",
+   price_move:"-2–+5%", notes:"Defensive hold in volatile environment"},
+
+  {ticker:"SSPW", name:"Sembcorp Salalah Power & Water", sector:"Power/Water", mcap:207, score:3,
+   dir:"mixed", dir_label:"→ Mixed",
+   inputs:"Gas-fired power. Salalah location = near drone strike zone.",
+   outputs:"Regulated power and water offtake agreements — stable.",
+   rationale:"Salalah physical risk is a genuine concern (drone strikes). Regulated offtake protects revenue but physical disruption risk.",
+   price_move:"-5–+2%", notes:"⚠ Physical proximity to Salalah port attacks"},
+
+  {ticker:"SUWP", name:"Al Suwadi Power Company", sector:"Power/Water", mcap:116, score:3,
+   dir:"mixed", dir_label:"→ Mixed",
+   inputs:"Gas fuel — domestic supply, insulated",
+   outputs:"Regulated power tariff — stable",
+   rationale:"Standard regulated utility. Insulated from Hormuz. Neither beneficiary nor victim.",
+   price_move:"-2–+3%", notes:""},
+
+  {ticker:"BATP", name:"Al Batinah Power Company", sector:"Power/Water", mcap:109, score:3,
+   dir:"mixed", dir_label:"→ Mixed",
+   inputs:"Gas fuel — domestic",
+   outputs:"Regulated power revenue",
+   rationale:"Regulated utility. Defensive. No meaningful Hormuz linkage.",
+   price_move:"-2–+3%", notes:""},
+
+  {ticker:"DGEN", name:"Dhofar Generating Company", sector:"Power/Water", mcap:19, score:2,
+   dir:"down", dir_label:"↓ Avoid",
+   inputs:"Fuel imports for generation. Salalah proximity risk.",
+   outputs:"Regulated power revenue — stable but physical risk elevated.",
+   rationale:"Dhofar location adds drone attack risk. Fuel import exposure. Small cap with limited buffer.",
+   price_move:"-8–15%", notes:"Salalah proximity is primary risk"},
+
+  {ticker:"SHRQ", name:"Sharqiyah Desalination", sector:"Power/Water", mcap:17, score:3,
+   dir:"mixed", dir_label:"→ Mixed",
+   inputs:"Electricity costs rising. Chemicals (chlorine etc.) imports affected.",
+   outputs:"Water offtake regulated — stable and essential.",
+   rationale:"Essential infrastructure. Water demand inelastic. Some input cost pressure but regulated offtake protects.",
+   price_move:"-3–+3%", notes:""},
+
+  {ticker:"BWPC", name:"Barka Water and Power", sector:"Power/Water", mcap:27, score:3,
+   dir:"mixed", dir_label:"→ Mixed",
+   inputs:"Gas fuel — domestic. Equipment maintenance costs.",
+   outputs:"Regulated water and power. Stable offtake.",
+   rationale:"Defensive utility play. Insulated from Hormuz by domestic gas and regulated tariff.",
+   price_move:"-2–+3%", notes:""},
+
+  {ticker:"MCDE", name:"Muscat City Desalination", sector:"Power/Water", mcap:14, score:3,
+   dir:"mixed", dir_label:"→ Mixed",
+   inputs:"Electricity and chemical costs rising slightly",
+   outputs:"Regulated water supply — essential and stable",
+   rationale:"Essential water infrastructure. Very defensive. Limited Hormuz impact either way.",
+   price_move:"-2–+3%", notes:""},
+
+  {ticker:"KPCS", name:"Al Kamil Power Company", sector:"Power/Water", mcap:18, score:3,
+   dir:"mixed", dir_label:"→ Mixed",
+   inputs:"Gas fuel — domestic supply",
+   outputs:"Regulated power tariff",
+   rationale:"Standard regulated utility. Defensive.",
+   price_move:"-2–+3%", notes:""},
+
+  {ticker:"MSPW", name:"Musandam Power Company", sector:"Power/Water", mcap:25, score:2,
+   dir:"down", dir_label:"↓ Avoid",
+   inputs:"Musandam Peninsula — strategically sensitive location adjacent to Hormuz. Physical risk. Price 355 Bzs (+5.97% today — anomalous).",
+   outputs:"Regulated power revenue.",
+   rationale:"Physical location risk is extreme — Musandam juts into the Strait of Hormuz. Any escalation puts physical infrastructure at direct risk. Today's +6% rally is anomalous given risk profile.",
+   price_move:"-10–20%", notes:"⚠ Critical: Musandam is physically in the Hormuz zone"},
+
+  {ticker:"SHPS", name:"Sohar Power Company", sector:"Power/Water", mcap:4, score:3,
+   dir:"mixed", dir_label:"→ Mixed",
+   inputs:"Gas fuel — Sohar industrial area, domestic supply",
+   outputs:"Power to Sohar industrial complex — demand actually rising with port activity surge.",
+   rationale:"Sohar industrial complex activity surging (port bypass hub). Power demand rises. Partially positive.",
+   price_move:"+3–8%", notes:"Sohar port activity surge is a mild positive"},
+
+  {ticker:"SMNP", name:"SMN Power Holding", sector:"Power/Water", mcap:48, score:3,
+   dir:"mixed", dir_label:"→ Mixed",
+   inputs:"Fuel costs — some exposure",
+   outputs:"Power generation revenue — regulated",
+   rationale:"Standard power holding. Defensive regulated revenue.",
+   price_move:"-2–+3%", notes:""},
+
+  {ticker:"BRDE", name:"Barka Desalination", sector:"Power/Water", mcap:12, score:3,
+   dir:"mixed", dir_label:"→ Mixed",
+   inputs:"Chemical inputs some import exposure. Electricity costs.",
+   outputs:"Water offtake — essential, regulated.",
+   rationale:"Essential water infrastructure. Defensive hold.",
+   price_move:"-2–+3%", notes:""},
+
+  // INDUSTRIAL / MANUFACTURING
+  {ticker:"VOES", name:"Voltamp Energy", sector:"Industrial Mfg", mcap:168, score:2,
+   dir:"down", dir_label:"↓ Avoid",
+   inputs:"Copper (+40%), aluminium (+30%), steel — all surging. Import logistics broken. War risk insurance on shipments.",
+   outputs:"Transformers, switchgear, panels — sold to GCC construction/energy projects. GCC pipeline frozen but Oman energy infra capex accelerating. Price 1,790 Bzs (+0.56% today).",
+   rationale:"Input cost triple-hit (copper, aluminium, steel) + GCC project pipeline freeze + broken import logistics. However, Oman domestic energy infrastructure capex is surging. Long-term structural growth story intact but near-term margin destruction likely. Q1 margin data will be the catalyst.",
+   price_move:"-15–25%", notes:"Q1 margin data will be the catalyst. Long-term thesis intact post-conflict."},
+
+  {ticker:"OCAI", name:"Oman Cables Industry", sector:"Industrial Mfg", mcap:248, score:1,
+   dir:"strong-down", dir_label:"↓↓ Strong Sell",
+   inputs:"Copper wire rods — primary input, heavily imported. Copper at record prices (+40%).",
+   outputs:"Power cables, telecom cables — sold to GCC/Oman infrastructure projects. GCC projects disrupted.",
+   rationale:"Cable manufacturer = pure copper price taker. Copper is the single biggest cost. At +40% copper, margins collapse unless they have hedging (unlikely at scale needed).",
+   price_move:"-20–30%", notes:"Copper price sensitivity is the key metric"},
+
+  {ticker:"ATMI", name:"Al Jazeera Steel Products", sector:"Industrial Mfg", mcap:101, score:1,
+   dir:"strong-down", dir_label:"↓↓ Strong Sell",
+   inputs:"Steel billet/scrap — imported. Freight costs surge. Electricity costs rise.",
+   outputs:"Steel rebar, sections — sold to Oman/GCC construction. Construction activity collapsing.",
+   rationale:"Steel re-roller — imports billets, adds value, sells to construction. Double hit: input costs up and construction demand down as GCC freezes.",
+   price_move:"-15–25%", notes:"Construction pipeline collapse is the demand driver"},
+
+  {ticker:"NAPI", name:"National Aluminium Products", sector:"Industrial Mfg", mcap:3, score:1,
+   dir:"strong-down", dir_label:"↓↓ Strong Sell",
+   inputs:"Aluminium — global prices up 30%+ (Hormuz blocks Gulf aluminium exports). Import cost surge.",
+   outputs:"Aluminium profiles/products for construction — demand down.",
+   rationale:"Aluminium fabricator hit both ways: raw material costs soar and construction demand collapses.",
+   price_move:"-20–35%", notes:"Aluminium price surge is catastrophic for this company"},
+
+  {ticker:"AACT", name:"Al Anwar Ceramic Tiles", sector:"Industrial Mfg", mcap:44, score:2,
+   dir:"down", dir_label:"↓ Avoid",
+   inputs:"Energy (gas — domestic, insulated). Glazing chemicals — some imports.",
+   outputs:"Ceramic tiles — sold to Oman/GCC construction. Construction slowdown hits demand.",
+   rationale:"Gas-fired kiln = insulated from fuel cost surge. But tile demand falls with GCC construction freeze.",
+   price_move:"-10–20%", notes:"Demand side is the risk, not cost side"},
+
+  {ticker:"AMCI", name:"Al Maha Ceramics", sector:"Industrial Mfg", mcap:14, score:2,
+   dir:"down", dir_label:"↓ Avoid",
+   inputs:"Similar to AACT — gas-fired, some chemical imports",
+   outputs:"Ceramics to construction sector — same demand destruction",
+   rationale:"Same dynamics as Al Anwar Ceramics. Small cap version.",
+   price_move:"-10–20%", notes:""},
+
+  {ticker:"OCHL", name:"Oman Chlorine", sector:"Industrial Mfg", mcap:14, score:2,
+   dir:"down", dir_label:"↓ Avoid",
+   inputs:"Electricity costs rising. Salt — domestic.",
+   outputs:"Chlorine, caustic soda — industrial chemicals. Some export to Gulf (disrupted).",
+   rationale:"Export market disruption hits Gulf chemical sales. Domestic demand for water treatment stable.",
+   price_move:"-5–15%", notes:"Gulf export market disruption is primary risk"},
+
+  {ticker:"OPCI", name:"Omani Packaging Company", sector:"Industrial Mfg", mcap:6, score:2,
+   dir:"down", dir_label:"↓ Avoid",
+   inputs:"Polymer/resin inputs — petrochemical derivatives (prices surging). Import disruption.",
+   outputs:"Packaging for domestic food/consumer. Domestic demand steady.",
+   rationale:"Polymer cost surge (petrochemicals blocked at Hormuz) hits packaging manufacturers directly.",
+   price_move:"-10–20%", notes:"Resin/polymer price surge is key risk"},
+
+  {ticker:"MTMI", name:"Muscat Thread Mills", sector:"Industrial Mfg", mcap:4, score:2,
+   dir:"down", dir_label:"↓ Avoid",
+   inputs:"Cotton, synthetic fibres — imported. Disrupted supply chain.",
+   outputs:"Thread/textile products — domestic and export.",
+   rationale:"Import-dependent on raw fibres. Small manufacturer with limited hedging ability.",
+   price_move:"-10–20%", notes:""},
+
+  {ticker:"GICI", name:"Gulf International Chemicals", sector:"Industrial Mfg", mcap:2, score:2,
+   dir:"down", dir_label:"↓ Avoid",
+   inputs:"Chemical raw materials — heavily import dependent.",
+   outputs:"Industrial chemicals — Gulf market disrupted.",
+   rationale:"Both input and output disrupted. Very small cap.",
+   price_move:"-10–20%", notes:""},
+
+  {ticker:"CMII", name:"Construction Materials Industries", sector:"Industrial Mfg", mcap:4, score:1,
+   dir:"strong-down", dir_label:"↓↓ Strong Sell",
+   inputs:"Raw materials — various imports. Energy costs rising.",
+   outputs:"Construction materials — demand collapsing with GCC construction freeze.",
+   rationale:"Pure construction play. Both supply chain disruption and demand destruction.",
+   price_move:"-20–35%", notes:""},
+
+  // FOOD & BEVERAGES
+  {ticker:"SPFI", name:"A'Saffa Foods", sector:"Food & Bev", mcap:94, score:2,
+   dir:"down", dir_label:"↓ Avoid",
+   inputs:"⚠ Poultry feed (soya, corn — imported). 60–70% of production cost. Feed = war critical import.",
+   outputs:"Domestic chicken — demand surge (import competition falls). But Govt likely imposes price controls. Price 780 Bzs (+1.30% today).",
+   rationale:"Import-dependent inputs + likely price controls + export markets (UAE, Qatar) collapsed. Stock ran on wrong thesis (food security buy). Margin compression incoming. ~4 weeks into Hormuz closure — feed inventory running low.",
+   price_move:"-20–35%", notes:"⚠ Watch feed inventory — 30-60 day buffer from March 4 nearly exhausted"},
+
+  {ticker:"OFMI", name:"Oman Flour Mills", sector:"Food & Bev", mcap:85, score:1,
+   dir:"strong-down", dir_label:"↓↓ Strong Sell",
+   inputs:"⚠ Wheat — almost entirely imported (Oman produces negligible grain). Port disruption critical.",
+   outputs:"Flour, bread — domestic staple. Price controls almost certain on bread.",
+   rationale:"Wheat miller = 100% import-dependent on primary input. Wheat globally disrupted + fertilizer crisis worsens next harvest. Price controls on bread cap revenue. Catastrophic margin squeeze.",
+   price_move:"-25–40%", notes:"⚠ Most vulnerable food company on MSX. Watch wheat import arrivals."},
+
+  {ticker:"SFMI", name:"Salalah Mills Company", sector:"Food & Bev", mcap:27, score:1,
+   dir:"strong-down", dir_label:"↓↓ Strong Sell",
+   inputs:"Wheat imports via Salalah port — directly disrupted. Salalah already drone-struck.",
+   outputs:"Flour — domestic. Price controls likely.",
+   rationale:"Salalah location means grain imports come through a port under active attack. Double jeopardy: supply disruption + price controls.",
+   price_move:"-25–40%", notes:"⚠ Salalah port drone attacks directly impact this company"},
+
+  {ticker:"DFIN", name:"Dhofar Food & Investment", sector:"Food & Bev", mcap:30, score:2,
+   dir:"down", dir_label:"↓ Avoid",
+   inputs:"Diverse food imports, FMCG goods — logistics chain disrupted.",
+   outputs:"Food and consumer goods distribution — domestic demand steady but supply constrained.",
+   rationale:"Diversified food distributor. Import disruption hits supply. Some domestic production insulates partially.",
+   price_move:"-10–20%", notes:""},
+
+  {ticker:"ORCI", name:"Oman Refreshment (PepsiCo Franchise)", sector:"Food & Bev", mcap:68, score:2,
+   dir:"down", dir_label:"↓ Avoid",
+   inputs:"Sugar, concentrate, packaging — some imported. Energy costs rising.",
+   outputs:"Carbonated beverages — domestic. Discretionary spend under pressure as food inflation surges.",
+   rationale:"Consumer discretionary beverage. Consumers prioritise staples over soft drinks during food inflation shock.",
+   price_move:"-8–18%", notes:"Consumer spending priority shift is main risk"},
+
+  {ticker:"NBII", name:"National Biscuit Industries", sector:"Food & Bev", mcap:5, score:2,
+   dir:"down", dir_label:"↓ Avoid",
+   inputs:"Wheat flour, sugar, palm oil, packaging — all import-dependent. Costs surge.",
+   outputs:"Biscuits — semi-discretionary. Demand resilient but margins squeezed.",
+   rationale:"Import-dependent FMCG manufacturer. Input cost surge outpaces pricing power.",
+   price_move:"-10–20%", notes:""},
+
+  {ticker:"GMPI", name:"Gulf Mushroom Products", sector:"Food & Bev", mcap:19, score:3,
+   dir:"mixed", dir_label:"→ Mixed",
+   inputs:"Mushroom substrate (local ag waste), some imports. Energy costs.",
+   outputs:"Fresh mushrooms — domestic, perishable. Food security demand uplift.",
+   rationale:"Locally grown product. Domestic demand rises as import competition falls. Energy cost headwind partially offsets.",
+   price_move:"+5–12%", notes:"Domestic fresh produce = mild beneficiary"},
+
+  {ticker:"DBCI", name:"Dhofar Beverage & Foodstuff", sector:"Food & Bev", mcap:4, score:2,
+   dir:"down", dir_label:"↓ Avoid",
+   inputs:"Beverage raw materials — imported. Small operation.",
+   outputs:"Beverages — domestic. Discretionary.",
+   rationale:"Small beverage company. Import inputs + discretionary product = squeeze.",
+   price_move:"-8–15%", notes:""},
+
+  {ticker:"OSCI", name:"Sweets of Oman", sector:"Food & Bev", mcap:4, score:2,
+   dir:"down", dir_label:"↓ Avoid",
+   inputs:"Sugar, dairy, flavourings — mostly imported. Costs surge.",
+   outputs:"Confectionery — highly discretionary. Last thing consumers buy in a crisis.",
+   rationale:"Discretionary confectionery + import-dependent ingredients = double negative.",
+   price_move:"-10–20%", notes:""},
+
+  {ticker:"NMWI", name:"National Mineral Water", sector:"Food & Bev", mcap:1, score:3,
+   dir:"mixed", dir_label:"→ Mixed",
+   inputs:"Packaging (PET bottles — petrochemical derivative, costs rising). Water — local.",
+   outputs:"Bottled water — essential, domestic. Demand inelastic.",
+   rationale:"Essential product, local water source. PET bottle cost pressure is main headwind but demand very inelastic.",
+   price_move:"-3–+5%", notes:""},
+
+  {ticker:"NDTI", name:"National Detergent Company", sector:"Food & Bev", mcap:14, score:1,
+   dir:"strong-down", dir_label:"↓↓ Strong Sell",
+   inputs:"Petrochemical derivatives (surfactants, LAB) — Hormuz-blocked. Key inputs.",
+   outputs:"Detergents — domestic. Essential but price-sensitive.",
+   rationale:"Surfactant raw materials (LAB, fatty alcohols) are petrochemical derivatives specifically blocked at Hormuz. Input supply chain critically disrupted.",
+   price_move:"-20–35%", notes:"Petrochemical input disruption is critical"},
+
+  // CEMENT
+  {ticker:"OCOI", name:"Oman Cement", sector:"Cement", mcap:179, score:2,
+   dir:"down", dir_label:"↓ Avoid",
+   inputs:"Coal/fuel for kilns (partly imported, energy costs rising). Clinker — mostly domestic limestone.",
+   outputs:"Cement — domestic Oman construction. Some Gulf export. GCC construction slowdown.",
+   rationale:"Local limestone = insulated on raw material. But fuel/coal imports costly and GCC cement export market disrupted. Domestic Oman construction holds better than Gulf.",
+   price_move:"-8–15%", notes:"Domestic Oman infrastructure projects continue (OQEP-linked)"},
+
+  {ticker:"RCCI", name:"Raysut Cement", sector:"Cement", mcap:25, score:2,
+   dir:"down", dir_label:"↓ Avoid",
+   inputs:"Coal fuel — imported. Salalah-based = port disruption risk.",
+   outputs:"Cement for Dhofar/Oman and export to Horn of Africa/Yemen. Export markets disrupted.",
+   rationale:"Salalah location = drone strike risk. Export market (Yemen already war-torn) disrupted. Coal import logistics broken.",
+   price_move:"-12–22%", notes:"⚠ Salalah location adds specific risk vs OCOI"},
+
+  // INSURANCE
+  {ticker:"LIVA", name:"Liva Group", sector:"Insurance", mcap:147, score:4,
+   dir:"up", dir_label:"▲ Buy",
+   inputs:"Reinsurance costs rising globally (war risk surge). Claims from war-zone assets potentially.",
+   outputs:"⚡ War risk & marine insurance premiums SURGE. P&I clubs pricing at record levels. LIVA can reprice renewals significantly upward. Price 370 Bzs (flat today).",
+   rationale:"Insurance is the surprise winner. War risk premiums are at record levels for marine/property. Liva can reprice policies aggressively. New business inflow from companies seeking war coverage.",
+   price_move:"+15–25%", notes:"Watch war risk premium income vs claims ratio"},
+
+  {ticker:"OUIC", name:"Oman United Insurance", sector:"Insurance", mcap:38, score:4,
+   dir:"up", dir_label:"▲ Buy",
+   inputs:"Reinsurance retrocession costs rise. War claims potential.",
+   outputs:"War risk, marine, property premiums surge — repricing opportunity significant.",
+   rationale:"Same dynamic as Liva. Insurance sector broadly benefits from premium repricing in crisis. Smaller, less diversified.",
+   price_move:"+10–20%", notes:"Reinsurance back-to-back coverage is key"},
+
+  {ticker:"OQIC", name:"Oman Qatar Insurance", sector:"Insurance", mcap:30, score:3,
+   dir:"mixed", dir_label:"→ Mixed",
+   inputs:"Qatar parent company severely disrupted. Reinsurance costs up.",
+   outputs:"War risk premium uplift.",
+   rationale:"Qatar parent disruption is a complication vs pure Oman insurers. Net: mixed.",
+   price_move:"-3–+10%", notes:"Qatar ownership adds geopolitical complexity"},
+
+  {ticker:"DICS", name:"Dhofar Insurance", sector:"Insurance", mcap:30, score:3,
+   dir:"mixed", dir_label:"→ Mixed",
+   inputs:"Reinsurance costs rising. Dhofar regional exposure (Salalah risk).",
+   outputs:"Premium repricing — war risk uplift.",
+   rationale:"Regional insurer. Premium uplift is real but Salalah claim risk is also real.",
+   price_move:"+3–10%", notes:"Salalah exposure on both sides of the balance sheet"},
+
+  {ticker:"AMAT", name:"Al Madina Insurance", sector:"Insurance", mcap:22, score:3,
+   dir:"mixed", dir_label:"→ Mixed",
+   inputs:"Reinsurance costs rising.",
+   outputs:"War risk premium repricing opportunity — small player.",
+   rationale:"Small insurer. Limited capacity to write large war risk tickets but benefits from general market repricing.",
+   price_move:"+5–12%", notes:""},
+
+  {ticker:"TAOI", name:"Takaful Oman Insurance", sector:"Insurance", mcap:18, score:2,
+   dir:"down", dir_label:"↓ Avoid",
+   inputs:"Solvency already under pressure (retained earnings deficit -RO 15.2M per published financials). Reinsurance costs surge.",
+   outputs:"Takaful premiums — limited war risk book. Price 73 Bzs (-3.95% today — weakest MSX performer).",
+   rationale:"Pre-existing solvency concerns + reinsurance cost surge = elevated risk. Not positioned to benefit from war risk premium uplift. MCR deficit visible in published financial statements.",
+   price_move:"-8–18%", notes:"⚠ Pre-existing solvency concern amplified. Weakest stock on MSX today."},
+
+  {ticker:"ORIC", name:"Oman Reinsurance", sector:"Insurance", mcap:28, score:4,
+   dir:"up", dir_label:"▲ Buy",
+   inputs:"Claims exposure — war risk cedants ceding to ORIC.",
+   outputs:"Reinsurance premium income surges dramatically. ORIC can selectively price war risk at record rates.",
+   rationale:"Reinsurer benefits from premium surge across all primary insurers repricing war risk. Counter-intuitively benefits from the crisis if well-capitalized.",
+   price_move:"+10–20%", notes:"Capitalization adequacy is key — can they absorb if claims materialise"},
+
+  {ticker:"AFIC", name:"Arabia Falcon Insurance", sector:"Insurance", mcap:14, score:3,
+   dir:"mixed", dir_label:"→ Mixed",
+   inputs:"Reinsurance costs up. Small capital base.",
+   outputs:"Some war risk premium uplift.",
+   rationale:"Small insurer. Limited scale to capture upside. Reinsurance cost pressure real.",
+   price_move:"-3–+8%", notes:""},
+
+  // FINANCE
+  {ticker:"NFCI", name:"National Finance Company", sector:"Finance", mcap:139, score:2,
+   dir:"down", dir_label:"↓ Avoid",
+   inputs:"Cost of funds rising. Borrower credit quality deteriorates.",
+   outputs:"Consumer/auto financing — demand under pressure as consumer spending contracts.",
+   rationale:"Consumer finance company. Inflation shock reduces consumer affordability and borrowing appetite.",
+   price_move:"-8–15%", notes:"Consumer credit quality is the watch metric"},
+
+  {ticker:"TFCI", name:"Taageer Finance", sector:"Finance", mcap:35, score:2,
+   dir:"down", dir_label:"↓ Avoid",
+   inputs:"Cost of funds rising. Asset quality under pressure.",
+   outputs:"Equipment/vehicle leasing — demand from oil sector partially offsets.",
+   rationale:"Leasing company. Oil sector equipment demand (positive) vs consumer/SME distress (negative).",
+   price_move:"-5–12%", notes:""},
+
+  {ticker:"UFCI", name:"United Finance Company", sector:"Finance", mcap:31, score:2,
+   dir:"down", dir_label:"↓ Avoid",
+   inputs:"Funding cost rises. Borrower distress.",
+   outputs:"Consumer/commercial finance. Demand mixed.",
+   rationale:"Standard finance company dynamics — broadly negative in inflation/stress environment.",
+   price_move:"-5–12%", notes:""},
+
+  {ticker:"AOFS", name:"Al Omaniya Financial Services", sector:"Finance", mcap:58, score:2,
+   dir:"down", dir_label:"↓ Avoid",
+   inputs:"Funding costs rise. Consumer credit quality.",
+   outputs:"Consumer hire-purchase/leasing.",
+   rationale:"Consumer finance — stress environment negative.",
+   price_move:"-5–12%", notes:""},
+
+  {ticker:"MFCI", name:"Muscat Finance", sector:"Finance", mcap:24, score:2,
+   dir:"down", dir_label:"↓ Avoid",
+   inputs:"Funding costs rising.",
+   outputs:"Finance — small diversified book.",
+   rationale:"Small finance company. Broadly negative macro environment.",
+   price_move:"-5–12%", notes:""},
+
+  // INVESTMENT HOLDING
+  {ticker:"OMVS", name:"Oman Intl Dev & Investment Holding", sector:"Investment", mcap:380, score:4,
+   dir:"up", dir_label:"▲ Buy",
+   inputs:"Portfolio companies — mixed. Subsidiaries in insurance, banking, capital markets.",
+   outputs:"Diversified investment holding with exposure to insurance (premiums surge), capital markets (MSX volumes at record), and banking. Price 406 Bzs (+2.27% today).",
+   rationale:"Diversified investment holding company. Insurance operations benefit from war risk premium repricing. Capital markets operations benefit from record MSX volumes. Banking exposure mixed. Net: mild positive.",
+   price_move:"+8–15%", notes:"Insurance and capital markets subsidiaries are key upside drivers"},
+
+  {ticker:"DIDI", name:"Dhofar International Development", sector:"Investment", mcap:145, score:2,
+   dir:"down", dir_label:"↓ Avoid",
+   inputs:"Diversified portfolio — Dhofar region concentration.",
+   outputs:"Tourism, hospitality, trade investments — all disrupted.",
+   rationale:"Dhofar concentration = physical risk exposure. Tourism, hospitality, trade investments all negative.",
+   price_move:"-8–18%", notes:"Dhofar region (Salalah) physical risk is primary concern"},
+
+  {ticker:"AAIC", name:"Al Anwar Investments", sector:"Investment", mcap:39, score:3,
+   dir:"mixed", dir_label:"→ Mixed",
+   inputs:"Portfolio of Oman industrials/real estate.",
+   outputs:"Mixed portfolio — some energy-linked, some construction-linked.",
+   rationale:"Diversified small investment holding. Energy-linked investments positive, construction negative. Net: neutral.",
+   price_move:"-5–+8%", notes:""},
+
+  {ticker:"GFIC", name:"Global Financial Investments", sector:"Investment", mcap:60, score:3,
+   dir:"mixed", dir_label:"→ Mixed",
+   inputs:"Investment portfolio — diversified.",
+   outputs:"Returns from MSX-listed equities — net positive if energy stocks run.",
+   rationale:"Investment holding co. Benefits indirectly from MSX rally in energy stocks.",
+   price_move:"+3–10%", notes:""},
+
+  {ticker:"AJSS", name:"Al Jazeira Services", sector:"Investment", mcap:39, score:3,
+   dir:"mixed", dir_label:"→ Mixed",
+   inputs:"Diversified services.",
+   outputs:"Mixed services portfolio.",
+   rationale:"Diversified small services company. Limited specific Hormuz impact.",
+   price_move:"-3–+5%", notes:""},
+
+  {ticker:"FINC", name:"The Financial Corporation", sector:"Finance", mcap:3, score:3,
+   dir:"mixed", dir_label:"→ Mixed",
+   inputs:"Small investment portfolio.",
+   outputs:"Investment returns.",
+   rationale:"Micro-cap investment co. Limited analytical leverage.",
+   price_move:"-5–+5%", notes:""},
+
+  {ticker:"AMII", name:"Al Madina Investment Holding", sector:"Investment", mcap:3, score:2,
+   dir:"down", dir_label:"↓ Avoid",
+   inputs:"Negative retained earnings — pre-existing distress.",
+   outputs:"Limited.",
+   rationale:"Company has negative revenue. Pre-existing distress amplified in crisis.",
+   price_move:"-15–30%", notes:"⚠ Pre-existing financial distress"},
+
+  {ticker:"FSCI", name:"Financial Services Company", sector:"Finance", mcap:2, score:3,
+   dir:"mixed", dir_label:"→ Mixed",
+   inputs:"Limited.",
+   outputs:"Financial services — small.",
+   rationale:"Micro-cap. Insufficient data for meaningful analysis.",
+   price_move:"N/A", notes:""},
+
+  {ticker:"DBIH", name:"Al Batinah Development & Investment", sector:"Investment", mcap:2, score:3,
+   dir:"mixed", dir_label:"→ Mixed",
+   inputs:"Local real estate/development.",
+   outputs:"Domestic Oman real estate — somewhat insulated.",
+   rationale:"Local development holding. Limited Hormuz impact on pure domestic real estate.",
+   price_move:"-5–+5%", notes:""},
+
+  {ticker:"SIHC", name:"A'Sharqiya Investment Holding", sector:"Investment", mcap:11, score:3,
+   dir:"mixed", dir_label:"→ Mixed",
+   inputs:"Diversified small holdings.",
+   outputs:"Mixed.",
+   rationale:"Small diversified holding. Limited specific Hormuz linkage.",
+   price_move:"-5–+5%", notes:""},
+
+  // REAL ESTATE
+  {ticker:"NRED", name:"National Real Estate Development", sector:"Real Estate", mcap:9, score:2,
+   dir:"down", dir_label:"↓ Avoid",
+   inputs:"Construction costs surging (steel, cement). Labour availability pressure.",
+   outputs:"Real estate development — demand paused as uncertainty soars.",
+   rationale:"Development real estate worst hit by construction cost inflation and demand paralysis during conflict.",
+   price_move:"-10–20%", notes:"Construction material cost surge"},
+
+  // ENGINEERING & CONSTRUCTION
+  {ticker:"GECP", name:"Galfar Engineering (Pref)", sector:"Engineering", mcap:68, score:3,
+   dir:"mixed", dir_label:"→ Mixed",
+   inputs:"Steel, equipment imports — costs rising. Some import disruption.",
+   outputs:"Government Oman infrastructure contracts — largely insulated from GCC freeze.",
+   rationale:"Oman government contractor. OQEP drilling infrastructure contracts rise. GCC private sector contracts fall. Net: roughly neutral.",
+   price_move:"-5–+8%", notes:"Government Oman contracts vs GCC private sector"},
+
+  {ticker:"GECS", name:"Galfar Engineering (Ord)", sector:"Engineering", mcap:68, score:3,
+   dir:"mixed", dir_label:"→ Mixed",
+   inputs:"Same as GECP.",
+   outputs:"Same as GECP.",
+   rationale:"Same as GECP — ordinary shares. Same dynamics.",
+   price_move:"-5–+8%", notes:""},
+
+  {ticker:"HECI", name:"Al Hassan Engineering", sector:"Engineering", mcap:2, score:2,
+   dir:"down", dir_label:"↓ Avoid",
+   inputs:"Equipment imports, steel — costs up. Pre-existing financial stress.",
+   outputs:"Engineering services — GCC pipeline disrupted.",
+   rationale:"Small contractor. Pre-existing financial difficulties + supply chain disruption.",
+   price_move:"-10–20%", notes:"⚠ Very low stock price signals distress"},
+
+  {ticker:"AFAI", name:"Al Fajar Al Alamia", sector:"Engineering", mcap:24, score:3,
+   dir:"mixed", dir_label:"→ Mixed",
+   inputs:"Equipment, materials — some imports.",
+   outputs:"Infrastructure services — Oman domestic.",
+   rationale:"Domestic Oman services. Insulated from GCC freeze. Modest Hormuz impact.",
+   price_move:"-3–+5%", notes:""},
+
+  // EDUCATION
+  {ticker:"OETI", name:"Oman Education & Training", sector:"Education", mcap:112, score:3,
+   dir:"mixed", dir_label:"→ Mixed",
+   inputs:"Imported educational equipment, some faculty travel — minor disruption.",
+   outputs:"Education services — domestic Oman. Demand counter-cyclical in crisis.",
+   rationale:"Education is relatively defensive. Crisis drives more Omanis to study/upskill. Limited Hormuz impact.",
+   price_move:"-3–+5%", notes:"Defensive sector"},
+
+  {ticker:"BACS", name:"Majan College", sector:"Education", mcap:13, score:3,
+   dir:"mixed", dir_label:"→ Mixed",
+   inputs:"Minimal import dependency.",
+   outputs:"Higher education — domestic Oman. Stable.",
+   rationale:"Very defensive. Education demand is inelastic in Oman given Vision 2040 focus.",
+   price_move:"-2–+5%", notes:""},
+
+  // HOSPITALITY & TOURISM
+  {ticker:"SAHS", name:"Sahara Hospitality", sector:"Hospitality", mcap:22, score:1,
+   dir:"strong-down", dir_label:"↓↓ Strong Sell",
+   inputs:"Food & beverage — largely imported. Energy costs up.",
+   outputs:"Hotel revenue — COLLAPSED. Tourist arrivals near zero. GCC visitor collapse.",
+   rationale:"Middle East tourism completely collapsed. Flights halted. Tourist arrivals near zero. Existential revenue risk.",
+   price_move:"-30–50%", notes:"⚠ Existential risk — near-zero revenue environment"},
+
+  {ticker:"GHOS", name:"Gulf Hotels (Oman)", sector:"Hospitality", mcap:12, score:1,
+   dir:"strong-down", dir_label:"↓↓ Strong Sell",
+   inputs:"F&B, imported goods. Energy costs.",
+   outputs:"Hotel revenue — near-zero tourist arrivals.",
+   rationale:"Same existential risk as Sahara Hospitality. Tourism collapse.",
+   price_move:"-30–50%", notes:"⚠ Existential risk — tourism industry"},
+
+  {ticker:"HMCI", name:"Hotels Management Company International", sector:"Hospitality", mcap:4, score:1,
+   dir:"strong-down", dir_label:"↓↓ Strong Sell",
+   inputs:"F&B imports, energy.",
+   outputs:"Hotel management revenue — dependent on room occupancy. Near zero.",
+   rationale:"Hotel management fees = % of revenue. With revenues near zero, fees near zero.",
+   price_move:"-30–50%", notes:""},
+
+  {ticker:"DTCS", name:"Dhofar Tourism Company", sector:"Hospitality", mcap:12, score:1,
+   dir:"strong-down", dir_label:"↓↓ Strong Sell",
+   inputs:"Salalah-based. Drone strike risk + tourism collapse.",
+   outputs:"Tourism revenue — near zero. Dhofar khareef season may be affected.",
+   rationale:"Dhofar tourism + Salalah physical risk + broader tourism collapse. Worst combination.",
+   price_move:"-35–55%", notes:"⚠ Dhofar location + tourism sector = double hit"},
+
+  {ticker:"UBAR", name:"Ubar Hotels & Resorts", sector:"Hospitality", mcap:6, score:1,
+   dir:"strong-down", dir_label:"↓↓ Strong Sell",
+   inputs:"Food, energy, imported hotel supplies.",
+   outputs:"Hotel revenue — tourist arrivals near zero.",
+   rationale:"Tourism sector collapse.",
+   price_move:"-30–50%", notes:""},
+
+  {ticker:"ABHS", name:"Al Buraimi Hotel", sector:"Hospitality", mcap:3, score:2,
+   dir:"down", dir_label:"↓ Avoid",
+   inputs:"F&B, energy.",
+   outputs:"Hotel revenue — border town. Less reliant on international tourism.",
+   rationale:"Border town hotel — less exposed to international tourist collapse vs coastal hotels. Still negative.",
+   price_move:"-15–25%", notes:"Domestic/UAE border traffic partially supports"},
+
+  // MINING / RESOURCES
+  {ticker:"OCCI", name:"Oman Chromite", sector:"Mining", mcap:12, score:4,
+   dir:"up", dir_label:"▲ Buy",
+   inputs:"Mining equipment, some imports. Fuel costs.",
+   outputs:"Chromite ore — industrial mineral, exported. Chrome prices surge with industrial supply chain disruption.",
+   rationale:"Specialty mineral exporter. Chrome ore demand from steel (which is itself disrupted) but spot prices surge in shortage. Oman mining = domestic production, Arabian Sea export route.",
+   price_move:"+10–20%", notes:"Niche industrial mineral play"},
+
+  {ticker:"GSCI", name:"Gulf Stone Company", sector:"Mining", mcap:4, score:3,
+   dir:"mixed", dir_label:"→ Mixed",
+   inputs:"Mining equipment — some imports. Fuel.",
+   outputs:"Marble, stone products — construction sector (disrupted).",
+   rationale:"Natural stone miner. Construction demand down. Domestic Oman production insulated from import disruption. Offsetting.",
+   price_move:"-5–+5%", notes:""},
+
+  // OQBI (already analysed)
+  {ticker:"OQBI", name:"OQ Base Industries", sector:"Petrochemicals", mcap:830, score:3,
+   dir:"mixed", dir_label:"→ Mixed",
+   inputs:"Naphtha/gas feedstock — Oman domestic (partially insulated). But some feedstock imports.",
+   outputs:"Polymers, resins — global prices surge 3–6 months lag after input cost rise. Price 240 Bzs (+4.80% today — strongest MSX gainer).",
+   rationale:"Input cost surge in short run. Output prices follow with lag. Q1/Q2 margin compression, then recovery. Net: neutral short-term. Strong rally today suggests market pricing in sustained $110+ oil.",
+   price_move:"+5–12%", notes:"Output price lag vs input cost is key timing risk"},
+
+  {ticker:"MGMC", name:"Muscat Gases Company", sector:"Industrial", mcap:4, score:4,
+   dir:"up", dir_label:"▲ Buy",
+   inputs:"Electricity — domestic. Equipment — some imports.",
+   outputs:"Industrial gases (O2, N2, CO2, Ar) — critical for oil & gas, steel, medical.",
+   rationale:"Industrial gas demand spikes with oilfield acceleration. Medical oxygen demand surges in war crisis. Local production = no import disruption.",
+   price_move:"+10–18%", notes:"War-crisis demand for medical gases + oilfield gases"},
+
+  {ticker:"OETI", name:"Oman Edu & Training Invest", sector:"Education", mcap:112, score:3,
+   dir:"mixed", dir_label:"→ Mixed",
+   inputs:"Minimal.",
+   outputs:"Education — defensive.",
+   rationale:"Defensive. Already covered above.",
+   price_move:"-3–+5%", notes:""},
+
+  {ticker:"OEIO", name:"Oman & Emirates Investment Holding", sector:"Investment", mcap:12, score:2,
+   dir:"down", dir_label:"↓ Avoid",
+   inputs:"UAE partner severely disrupted. Dubai-linked assets affected.",
+   outputs:"UAE joint venture investments — UAE infrastructure under attack.",
+   rationale:"UAE partnership is a liability in this scenario. Dubai International Airport damaged, UAE under attack.",
+   price_move:"-10–20%", notes:"UAE partner disruption is specific risk"},
+];
+
+// Remove duplicates
+const seen = new Set();
+const uniqueStocks = stocks.filter(s => {
+  if(seen.has(s.ticker)) return false;
+  seen.add(s.ticker); return true;
+});
+
+let filtered = [...uniqueStocks];
+let currentFilter = 'all';
+
+function scoreClass(s) {
+  return 'score-' + s;
+}
+function dirClass(d) {
+  const map = {'strong-up':'dir-strong-up','up':'dir-up','mixed':'dir-mixed','down':'dir-down','strong-down':'dir-strong-down'};
+  return map[d] || 'dir-mixed';
+}
+function mcapFmt(m) {
+  if(m >= 1000) return (m/1000).toFixed(2)+'B';
+  return m+'M';
+}
+function getCategory(s) {
+  if(s.score >= 4) return 'up';
+  if(s.score === 3) return 'mixed';
+  return 'down';
+}
+
+function setFilter(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => {
+    b.className = 'filter-btn';
+  });
+  btn.className = 'filter-btn active-' + f;
+  renderList();
+}
+
+function sortData(by) {
+  document.getElementById('sort-select').value = by;
+  if(by === 'score-desc') filtered.sort((a,b) => b.score - a.score);
+  else if(by === 'score-asc') filtered.sort((a,b) => a.score - b.score);
+  else if(by === 'mcap-desc') filtered.sort((a,b) => b.mcap - a.mcap);
+  else if(by === 'alpha') filtered.sort((a,b) => a.ticker.localeCompare(b.ticker));
+  renderList();
+}
+
+document.getElementById('search').addEventListener('input', function() {
+  renderList();
+});
+
+function renderList() {
+  const searchVal = document.getElementById('search').value.toLowerCase();
+  const list = document.getElementById('stock-list');
+
+  let data = uniqueStocks.filter(s => {
+    const cat = getCategory(s);
+    const filterOk = currentFilter === 'all' || cat === currentFilter;
+    const searchOk = !searchVal || s.ticker.toLowerCase().includes(searchVal) || s.name.toLowerCase().includes(searchVal) || s.sector.toLowerCase().includes(searchVal);
+    return filterOk && searchOk;
+  });
+
+  // sort
+  const sortVal = document.getElementById('sort-select').value;
+  if(sortVal === 'score-desc') data.sort((a,b) => b.score - a.score);
+  else if(sortVal === 'score-asc') data.sort((a,b) => a.score - b.score);
+  else if(sortVal === 'mcap-desc') data.sort((a,b) => b.mcap - a.mcap);
+  else if(sortVal === 'alpha') data.sort((a,b) => a.ticker.localeCompare(b.ticker));
+
+  document.getElementById('count-label').textContent = data.length + ' companies';
+
+  // count summary
+  const c5 = uniqueStocks.filter(s=>s.score===5).length;
+  const c4 = uniqueStocks.filter(s=>s.score===4).length;
+  const c3 = uniqueStocks.filter(s=>s.score===3).length;
+  const c2 = uniqueStocks.filter(s=>s.score===2).length;
+  const c1 = uniqueStocks.filter(s=>s.score===1).length;
+  document.getElementById('cnt-5').textContent = c5;
+  document.getElementById('cnt-4').textContent = c4;
+  document.getElementById('cnt-3').textContent = c3;
+  document.getElementById('cnt-2').textContent = c2;
+  document.getElementById('cnt-1').textContent = c1;
+
+  let html = '';
+  let lastSector = '';
+
+  data.forEach((s, i) => {
+    if(s.sector !== lastSector) {
+      html += `<div class="sector-group-header">${s.sector}</div>`;
+      lastSector = s.sector;
+    }
+
+    const pColor = s.score >= 4 ? 'green' : s.score === 3 ? 'amber' : 'red';
+    const barColor = s.score >= 4 ? 'var(--green)' : s.score === 3 ? 'var(--amber)' : 'var(--red)';
+    const barW = (s.score / 5 * 100) + '%';
+
+    html += `
+    <div class="stock-row" id="row-${i}" onclick="toggleExpand(${i})">
+      <div class="cell cell-ticker">${s.ticker}</div>
+      <div class="cell cell-name">${s.name}</div>
+      <div class="cell"><span class="cell-sector">${s.sector}</span></div>
+      <div class="cell" style="font-size:12px; color:var(--muted); line-height:1.4;">${s.rationale.substring(0,90)}${s.rationale.length>90?'…':''}</div>
+      <div class="cell cell-mcap">${mcapFmt(s.mcap)}</div>
+      <div class="cell"><span class="score-badge ${scoreClass(s.score)}">${s.score}/5</span></div>
+      <div class="cell"><span class="dir-badge ${dirClass(s.dir)}">${s.dir_label}</span></div>
+    </div>
+    <div class="expand-panel" id="panel-${i}">
+      <div class="ep-section">
+        <div class="ep-label">Input exposure</div>
+        <div class="ep-text">${s.inputs}</div>
+      </div>
+      <div class="ep-section">
+        <div class="ep-label">Output / revenue exposure</div>
+        <div class="ep-text">${s.outputs}</div>
+        <div class="ep-label" style="margin-top:12px;">Price move estimate</div>
+        <div class="ep-range ${pColor}">${s.price_move}</div>
+        <div class="impact-bar" style="background:${barColor}; width:${barW};"></div>
+      </div>
+      <div class="ep-section">
+        <div class="ep-label">Full rationale</div>
+        <div class="ep-text">${s.rationale}</div>
+        ${s.notes ? `<div class="ep-label" style="margin-top:10px;">Notes</div><div class="ep-text" style="color:var(--amber);">${s.notes}</div>` : ''}
+      </div>
+    </div>`;
+  });
+
+  list.innerHTML = html;
+}
+
+function toggleExpand(i) {
+  const panel = document.getElementById('panel-' + i);
+  const row = document.getElementById('row-' + i);
+  const isOpen = panel.classList.contains('open');
+  document.querySelectorAll('.expand-panel.open').forEach(p => p.classList.remove('open'));
+  document.querySelectorAll('.stock-row.expanded').forEach(r => r.classList.remove('expanded'));
+  if(!isOpen) {
+    panel.classList.add('open');
+    row.classList.add('expanded');
+  }
+}
+
+sortData('score-desc');
+</script>
+</body>
+</html>
